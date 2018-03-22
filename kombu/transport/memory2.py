@@ -2,14 +2,10 @@
 from __future__ import absolute_import, unicode_literals
 
 from kombu.five import Queue, values
-from kombu.five import Empty
 
-from kombu.utils.encoding import bytes_to_str, str_to_bytes
-from kombu.utils.json import loads, dumps
-from azure.storage.queue import QueueService
-import base64
 from . import base
 from . import virtual
+
 
 class Channel(virtual.Channel):
     """In-memory Channel."""
@@ -17,34 +13,16 @@ class Channel(virtual.Channel):
     queues = {}
     do_restore = False
     supports_fanout = True
-    _service = None
-
-    def _get_service(self):
-        self._service = QueueService(account_name='python123456d', account_key='fTDW0J9aoS0t6AiLPnLXtkQTj/VUw2tTl4QEycDKiiMuZfidjBWwORpt/1Fys9k1KqGWRHTtlDiQ0BBrtz5XqA==')
-        return self._service
 
     def _has_queue(self, queue, **kwargs):
         return queue in self.queues
 
     def _new_queue(self, queue, **kwargs):
         if queue not in self.queues:
-            print('create queue ' + queue)
-            service = self._get_service()
-            service.create_queue(queue)
             self.queues[queue] = Queue()
 
     def _get(self, queue, timeout=None):
-        print('get message')
-                
-        messages = self._service.get_messages(queue, num_messages=1)
-        for message in messages:
-            print('message = ' + str(message.content))
-            print(message.content)
-            self._service.delete_message(queue, message.id, message.pop_receipt)
-                        
-            return loads(message.content)
-            
-        raise Empty() #self._queue_for(queue).get(block=False)
+        return self._queue_for(queue).get(block=False)
 
     def _queue_for(self, queue):
         if queue not in self.queues:
@@ -59,10 +37,7 @@ class Channel(virtual.Channel):
             self._queue_for(queue).put(message)
 
     def _put(self, queue, message, **kwargs):
-        payload = dumps(message).decode('utf-8')
-        print('put message ' + payload)
-        self._service.put_message(queue, payload)
-        #self._queue_for(queue).put(message)
+        self._queue_for(queue).put(message)
 
     def _size(self, queue):
         return self._queue_for(queue).qsize()
